@@ -1,0 +1,20 @@
+.grid-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 5 equal-width columns */
+    grid-template-rows: repeat(2, auto); /* 2 rows */
+    gap: 10px;
+    margin: 0 auto;
+  }
+
+  .grid-image {
+    width: 100%;
+    height: 150px; /* Fixed height for grid images */
+    object-fit: cover;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: transform 0.3s ease;
+  }
+
+  .grid-image:hover {
+    transform: scale(1.1);
+  }
