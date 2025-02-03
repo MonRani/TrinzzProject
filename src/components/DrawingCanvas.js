@@ -2,88 +2,76 @@ import React, { useRef, useEffect, useState } from "react";
 import "../styles/DrawingCanvas.css";
 
 /**
- * DrawingCanvas component
+ * DrawingCanvas Component
  *
- * This component allows the user to draw on a canvas over an image.
- * Users can start drawing by pressing the mouse down, draw by moving the mouse,
- * and stop drawing when the mouse is released or leaves the canvas.
- * The component also provides an option to save the drawing as a `.txt` file
- * containing the coordinates of the drawing strokes.
+ * A React component that allows users to draw on an image displayed on a canvas.
+ * Users can start drawing by clicking and dragging the mouse, and the drawing can be saved as a text file.
  *
- * Props:
- * - `image` (string): The URL of the image to be drawn on. This image is loaded
- *   and scaled onto the canvas.
- *
- * State:
- * - `drawing` (boolean): Tracks if the user is currently drawing on the canvas.
- * - `strokes` (array): An array of drawing strokes, where each stroke contains
- *   an array of points (x, y coordinates).
- *
- * Refs:
- * - `canvasRef`: A reference to the canvas DOM element.
- * - `ctxRef`: A reference to the 2D canvas drawing context.
- * - `imgRef`: A reference to the image element used for drawing the image.
- *
- * Constants:
- * - `scaleFactor` (number): A scaling factor used to scale the image to fit
- *   within the canvas.
+ * @param {Object} props - Component props.
+ * @param {string} props.image - The URL of the image to be displayed on the canvas.
+ * @returns {JSX.Element} - A canvas element for drawing and a button to save the drawing.
  */
 function DrawingCanvas({ image }) {
   const canvasRef = useRef(null); // Reference to the canvas element
-  const ctxRef = useRef(null); // Reference to the 2D drawing context
-  const [drawing, setDrawing] = useState(false); // State to track if the user is drawing
-  const [strokes, setStrokes] = useState([]); // State to store the drawing strokes
+  const ctxRef = useRef(null); // Reference to the canvas 2D drawing context
+  const [drawing, setDrawing] = useState(false); // State to track whether the user is currently drawing
+  const [strokes, setStrokes] = useState([]); // State to store the drawing strokes (points)
   const imgRef = useRef(new Image()); // Reference to the image element
-  const scaleFactor = 1.5; // Scaling factor for the image to fit on the canvas
+  const scaleFactor = 1.5; // Scaling factor to resize the image to fit the canvas
 
-  // Effect to load the image onto the canvas and setup the drawing context
+  /**
+   * useEffect Hook
+   *
+   * Runs whenever the `image` prop changes. It loads the new image, clears the canvas,
+   * and sets up the drawing context with the appropriate properties.
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
 
-    // Load image if the src has changed
-    if (imgRef.current.src !== image) {
-        imgRef.current.src = image;
-        imgRef.current.onload = () => {
-          // Set canvas dimensions to match the image's natural size, scaled by the factor
-          canvas.width = imgRef.current.naturalWidth * scaleFactor;
-          canvas.height = imgRef.current.naturalHeight * scaleFactor;
+    // Clear the strokes when the image changes
+    setStrokes([]);
 
-          // Clear the canvas and redraw the image with the new size
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(
-            imgRef.current,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-          );
-        };
-    }
+    // Load the new image
+    imgRef.current.src = image;
+    imgRef.current.onload = () => {
+      // Set canvas dimensions to match the image's scaled size
+      canvas.width = imgRef.current.naturalWidth * scaleFactor;
+      canvas.height = imgRef.current.naturalHeight * scaleFactor;
 
-    // Set up drawing context properties
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = "red";
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
+      // Clear the canvas and draw the image
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
 
-    // Save the drawing context to ctxRef for later use
-    ctxRef.current = ctx;
-  }, [image]); // Effect depends on the `image` prop
+      // Set up drawing properties AFTER the image loads
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = "black";
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      ctxRef.current = ctx; // Save the updated context for later use
+    };
+  }, [image]); // Effect runs when the `image` prop changes
 
   /**
-   * Starts a new drawing stroke when the mouse is pressed down.
-   * It records the starting position and updates the drawing state.
+   * startDrawing Function
+   *
+   * Handles the start of a drawing stroke when the user clicks on the canvas.
+   *
+   * @param {MouseEvent} e - The mouse event triggered by clicking on the canvas.
    */
   const startDrawing = (e) => {
+    if (!ctxRef.current) return; // Prevent errors if the context is not available
+
     const startX = e.nativeEvent.offsetX;
     const startY = e.nativeEvent.offsetY;
 
+    // Begin a new drawing path and move to the starting point
     ctxRef.current.beginPath();
     ctxRef.current.moveTo(startX, startY);
-    setDrawing(true); // Set the drawing state to true
+    setDrawing(true); // Set drawing state to true
 
-    // Add a new stroke with the starting point
+    // Add a new stroke to the strokes array
     setStrokes((prevStrokes) => [
       ...prevStrokes,
       { points: [{ x: startX, y: startY }] },
@@ -91,62 +79,77 @@ function DrawingCanvas({ image }) {
   };
 
   /**
-   * Continues drawing on the canvas as the mouse moves.
-   * It records the new mouse position and draws a line from the previous point.
+   * draw Function
+   *
+   * Handles the drawing process as the user moves the mouse while holding down the button.
+   *
+   * @param {MouseEvent} e - The mouse event triggered by moving the mouse on the canvas.
    */
   const draw = (e) => {
-    if (!drawing) return; // Only draw if the user is currently drawing
+    if (!drawing || !ctxRef.current) return; // Ensure drawing is active and context is available
 
     const x = e.nativeEvent.offsetX;
     const y = e.nativeEvent.offsetY;
 
-    ctxRef.current.lineTo(x, y); // Draw a line to the new position
-    ctxRef.current.stroke(); // Apply the stroke
+    // Draw a line to the new point and apply the stroke
+    ctxRef.current.lineTo(x, y);
+    ctxRef.current.stroke();
 
-    // Update the strokes state with the new point
+    // Update the strokes array with the new point
     setStrokes((prevStrokes) => {
       const updatedStrokes = [...prevStrokes];
-      const currentStroke = updatedStrokes[updatedStrokes.length - 1];
-      currentStroke.points.push({ x, y });
+      updatedStrokes[updatedStrokes.length - 1].points.push({ x, y });
       return updatedStrokes;
     });
   };
 
   /**
-   * Stops drawing when the mouse is released or leaves the canvas.
+   * stopDrawing Function
+   *
+   * Handles the end of a drawing stroke when the user releases the mouse button.
    */
-  const stopDrawing = () => setDrawing(false);
+  const stopDrawing = () => {
+    setDrawing(false); // Set drawing state to false
+    if (ctxRef.current) {
+      ctxRef.current.beginPath(); // Ensure a clean stroke start for the next drawing
+    }
+  };
 
   /**
-   * Saves the drawing data as a .txt file containing the coordinates of all the strokes.
-   * Each stroke's points are saved as "x,y" pairs, separated by newlines.
+   * saveDrawing Function
+   *
+   * Saves the drawing strokes as a text file. Each stroke is represented as a series of points.
    */
   const saveDrawing = () => {
+    // Convert strokes to a string format
     const drawingData = strokes
       .map((stroke) =>
         stroke.points.map((point) => `${point.x},${point.y}`).join("\n")
       )
       .join("\n\n");
 
+    // Create a Blob with the drawing data and trigger a download
     const blob = new Blob([drawingData], { type: "text/plain" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = "drawing.txt"; // Set the filename for the download
-    link.click(); // Trigger the download
+    link.download = "drawing.txt";
+    link.click();
   };
 
   return (
     <div className="canvas-container">
+      {/* Canvas element for drawing */}
       <canvas
-        ref={canvasRef} // Reference to the canvas DOM element
-        width={400} // Canvas width
-        height={400} // Canvas height
-        onMouseDown={startDrawing} // Start drawing on mouse down
-        onMouseMove={draw} // Draw while the mouse is moving
-        onMouseUp={stopDrawing} // Stop drawing on mouse up
-        onMouseLeave={stopDrawing} // Stop drawing when the mouse leaves the canvas
+        ref={canvasRef}
+        width={400}
+        height={400}
+        onMouseDown={startDrawing}
+        onMouseMove={draw}
+        onMouseUp={stopDrawing}
+        onMouseLeave={stopDrawing}
       />
-      <button onClick={saveDrawing}>Save Drawing</button> {/* Save button */}
+      {/* Button to save the drawing */}
+      <button onClick={saveDrawing}>Save Drawing</button>
     </div>
   );
 }
