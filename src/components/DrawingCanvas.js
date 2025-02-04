@@ -143,6 +143,7 @@ function DrawingCanvas({ image }) {
         ref={canvasRef}
         width={400}
         height={400}
+        data-testid="drawing-canvas"
         onMouseDown={startDrawing}
         onMouseMove={draw}
         onMouseUp={stopDrawing}
