@@ -24,9 +24,10 @@ button {
   cursor: pointer;
   font-size: 16px;
   border-radius: 4px;
+  text-align: center; /* Center align text */
+  width: 100%; /* Ensure the button takes full width */
 }
 
 button:hover {
   background-color: darkblue;
 }
-
