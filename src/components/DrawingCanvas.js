@@ -689,37 +689,38 @@ const handleCanvasClick = (e) => {
     ctx.stroke();
   };
 
-  /**
-   * Saves the drawing as a text file with coordinate values.
-   */
-  const saveCoordinates = () => {
-    // Combine current stroke with completed strokes
-    const allStrokes = currentStroke.length > 0
-      ? [...strokes, currentStroke]
-      : strokes;
+/**
+ * Saves the drawing as a text file with coordinate values.
+ *
+ * Functionality:
+ * - Exports only **finished strokes**, excluding any ongoing drawing (`currentStroke`).
+ * - Formats each stroke as a series of (x, y) coordinates.
+ * - Saves the file as `drawing_coordinates.txt` for download.
+ */
+const saveCoordinates = () => {
+  // Use only finished strokes (ignore currentStroke)
+  const coordinatesText = strokes
+    .map((stroke) =>
+      stroke.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join("\n")
+    )
+    .join("\n\n"); // Ensure double newlines between strokes
 
-    // Create a formatted string of coordinates
-    const coordinatesText = allStrokes
-      .map((stroke) =>
-        stroke.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join("\n")
-      )
-      .join("\n\n"); // Ensure double newlines between strokes
+  // Create blob and download link
+  const blob = new Blob([coordinatesText], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'drawing_coordinates.txt';
 
-    // Create blob and download link
-    const blob = new Blob([coordinatesText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'drawing_coordinates.txt';
+  // Trigger download
+  document.body.appendChild(link);
+  link.click();
 
-    // Trigger download
-    document.body.appendChild(link);
-    link.click();
+  // Cleanup
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
 
-    // Cleanup
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
 
 
   return (
