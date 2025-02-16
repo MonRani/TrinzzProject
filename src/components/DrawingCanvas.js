@@ -419,7 +419,32 @@ export default DrawingCanvas;
 ///////// completed functionality. To do: test cases, code review
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import '../styles/DrawingCanvas.css'; //
+import '../styles/DrawingCanvas.css';
+
+/**
+ * DrawingCanvas component
+ *
+ * This component provides an interactive canvas where users can draw points and lines,
+ * edit points, and save the drawing as a set of coordinates. The canvas supports an image
+ * as a background, allowing users to annotate or mark points on it.
+ *
+ * Props:
+ * - `image` (string): The URL of the image to be loaded as a background on the canvas.
+ *
+ * State:
+ * - `strokes` (array): Stores all completed strokes (each stroke is an array of points).
+ * - `currentStroke` (array): Stores the currently drawn stroke (points that haven't been finalized).
+ * - `editingIndex` (object or null): Keeps track of which stroke and point are being edited.
+ * - `isDragging` (boolean): Indicates if a point is being dragged for editing.
+ * - `editMode` (boolean): Toggles between drawing and editing mode.
+ * - `isImageLoaded` (boolean): Indicates whether the background image has been fully loaded.
+ * - `canvasDimensions` (object): Stores the width and height of the canvas.
+ *
+ * Refs:
+ * - `canvasRef`: Reference to the `<canvas>` element.
+ * - `ctxRef`: Reference to the 2D rendering context for drawing.
+ * - `imgRef`: Reference to the background image object.
+ */
 
 function DrawingCanvas({ image }) {
   const canvasRef = useRef(null);
@@ -434,24 +459,9 @@ function DrawingCanvas({ image }) {
   const imgRef = useRef(new Image());
   const scaleFactor = 1.5;
 
-  const redrawCanvas = useCallback(() => {
-    const ctx = ctxRef.current;
-    const canvas = canvasRef.current;
-    if (!ctx || !canvas || !isImageLoaded) return;
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
-
-    strokes.forEach((stroke) => {
-      stroke.forEach((point) => drawPoint(point.x, point.y));
-      connectPoints(stroke);
-    });
-
-    currentStroke.forEach((point) => drawPoint(point.x, point.y));
-    connectPoints(currentStroke);
-  }, [strokes, currentStroke, isImageLoaded]);
-
-  // Initialize canvas context
+  /**
+   * Initializes the canvas with a drawing context when the component mounts.
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -464,7 +474,9 @@ function DrawingCanvas({ image }) {
     ctxRef.current = ctx;
   }, []);
 
-  // Handle image loading and clear strokes
+  /**
+   * Loads the background image when `image` prop changes.
+   */
   useEffect(() => {
     if (!image) return;
 
@@ -484,7 +496,31 @@ function DrawingCanvas({ image }) {
     };
   }, [image]);
 
-  // Update canvas dimensions when they change
+  /**
+   * Redraws the canvas, including the background image, strokes, and the current stroke.
+   */
+  const redrawCanvas = useCallback(() => {
+    const ctx = ctxRef.current;
+    const canvas = canvasRef.current;
+    if (!ctx || !canvas || !isImageLoaded) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imgRef.current, 0, 0, canvas.width, canvas.height);
+
+    strokes.forEach((stroke) => {
+      stroke.forEach((point) => drawPoint(point.x, point.y));
+      connectPoints(stroke);
+    });
+
+    currentStroke.forEach((point) => drawPoint(point.x, point.y));
+    connectPoints(currentStroke);
+  }, [strokes, currentStroke, isImageLoaded]);
+
+
+  /**
+   * Initializes the canvas context and updates the canvas dimensions whenever the `canvasDimensions`
+   * or 'redrawCanvas' changes. For example, when a new image is loaded, or new drawing points are added or edited.
+   */
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -502,6 +538,11 @@ function DrawingCanvas({ image }) {
     redrawCanvas();
   }, [canvasDimensions, redrawCanvas]);
 
+  /**
+   * Handles keyboard events:
+   * - 'F': Finalizes the current stroke and adds it to `strokes`.
+   * - 'E': Toggles edit mode.
+   */
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'f' || e.key === 'F') {
@@ -517,7 +558,21 @@ function DrawingCanvas({ image }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentStroke]);
 
-  const handleCanvasClick = (e) => {
+  /**
+   * Handles user clicks on the canvas to add points in drawing mode.
+   */
+//  const handleCanvasClick = (e) => {
+//    if (editMode || !isImageLoaded) return;
+//    const rect = canvasRef.current.getBoundingClientRect();
+//    const x = e.clientX - rect.left;
+//    const y = e.clientY - rect.top;
+//
+//    const newStroke = [...currentStroke, { x, y }];
+//    setCurrentStroke(newStroke);
+//    redrawCanvas();
+//  };
+
+const handleCanvasClick = (e) => {
     if (editMode || !isImageLoaded) return;
     const rect = canvasRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -525,9 +580,26 @@ function DrawingCanvas({ image }) {
 
     const newStroke = [...currentStroke, { x, y }];
     setCurrentStroke(newStroke);
-    redrawCanvas();
-  };
 
+    const ctx = ctxRef.current;
+    if (!ctx) return;
+
+    drawPoint(x, y);
+    connectPoints(newStroke);
+};
+
+
+/**
+ * Handles the mouse down event for editing points in the canvas.
+ *
+ * Functionality:
+ * - Checks if the edit mode is enabled and if the image is loaded.
+ * - Determines the position of the mouse click relative to the canvas.
+ * - Searches for a point within an existing stroke that is close to the clicked position.
+ * - If a nearby point is found, it sets the editing index and enables dragging mode.
+ *
+ * @param {MouseEvent} e - The mouse event object containing the click position.
+ */
   const handleMouseDown = (e) => {
     if (!editMode || !isImageLoaded) return;
     const rect = canvasRef.current.getBoundingClientRect();
@@ -544,23 +616,55 @@ function DrawingCanvas({ image }) {
     }
   };
 
+  /**
+   * Handles the mouse move event for dragging an existing point.
+   *
+   * Functionality:
+   * - Checks if the user is currently dragging a point.
+   * - Calculates the new mouse position relative to the canvas.
+   * - Updates the position of the selected point in the strokes array.
+   * - Triggers a redraw of the canvas to reflect the changes.
+   *
+   * @param {MouseEvent} e - The mouse event object containing the new cursor position.
+   */
   const handleMouseMove = (e) => {
-    if (!isDragging || editingIndex === null) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+      // If the user is not dragging a point or no point is selected, exit the function
+      if (!isDragging || editingIndex === null) return;
 
-    const updatedStrokes = [...strokes];
-    updatedStrokes[editingIndex.strokeIndex][editingIndex.pointIndex] = { x, y };
-    setStrokes(updatedStrokes);
-    redrawCanvas();
+      // Get the bounding rectangle of the canvas to calculate cursor coordinates
+      const rect = canvasRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left; // X-coordinate relative to the canvas
+      const y = e.clientY - rect.top;  // Y-coordinate relative to the canvas
+
+      // Create a copy of the strokes array to modify without mutating state directly
+      const updatedStrokes = [...strokes];
+
+      // Update the specific point being dragged with the new coordinates
+      updatedStrokes[editingIndex.strokeIndex][editingIndex.pointIndex] = { x, y };
+
+      // Update state with the modified strokes array
+      setStrokes(updatedStrokes);
+
+      // Redraw the canvas to reflect the changes
+      redrawCanvas();
   };
 
+  /**
+   * Handles the mouse up event, stopping the dragging operation.
+   *
+   * Functionality:
+   * - Resets the editing index to `null`, indicating no point is being edited.
+   * - Disables dragging mode to prevent further unintended movement.
+   */
   const handleMouseUp = () => {
-    setEditingIndex(null);
-    setIsDragging(false);
+      setEditingIndex(null);  // Clear the selected point
+      setIsDragging(false);   // Disable dragging mode
   };
 
+
+  /**
+   * Draws a point on the canvas.
+   */
   const drawPoint = (x, y) => {
     const ctx = ctxRef.current;
     if (!ctx) return;
@@ -571,6 +675,9 @@ function DrawingCanvas({ image }) {
     ctx.stroke();
   };
 
+  /**
+   * Connects a series of points with a line.
+   */
   const connectPoints = (points) => {
     const ctx = ctxRef.current;
     if (!ctx || points.length <= 1) return;
@@ -582,6 +689,9 @@ function DrawingCanvas({ image }) {
     ctx.stroke();
   };
 
+  /**
+   * Saves the drawing as a text file with coordinate values.
+   */
   const saveCoordinates = () => {
     // Combine current stroke with completed strokes
     const allStrokes = currentStroke.length > 0
@@ -642,3 +752,43 @@ function DrawingCanvas({ image }) {
 }
 
 export default DrawingCanvas;
+
+/*
+ * Test 1: Clicking on the canvas should add a point
+ * Works as expected
+ *
+ * Test 2: Clicking on the same point multiple times while in draw mode
+ * doesn't draw any lines but shows the point coordinates multiple times when downloaded
+ *
+ * Test 3: Drawing multiple strokes
+ * User should be able to draw multiple strokes and have them stored separately
+ * Limitation:
+ * No undo feature: Once a stroke is finalized, it **cannot be erased** or removed
+ *
+ * Test 4: Drawing a few points joined with lines, enter editing mode without pressing f
+ * doesn't let you edit unless you press f
+ *
+ * Test 5: Clicking rapidly at different points
+ * Works as expected; multiple points are recorded.
+ *
+ * Test 6: Holding the mouse button down while moving in draw mode
+ * will record a point where the mouse button is let go of i.e., at MouseUp
+ *
+ * Test 7: Trying to edit points that have overlapped
+ * the dit operation will take place on the top point
+ *
+ * Test 8: Moving a point and pressing 'F' without exiting edit mode
+ * Works as expected, the stroke updates with the new position
+ *
+ * Test 9: Clicking on a point, dragging it, then pressing 'E' mid-drag
+ * Unexpected behavior: The point continues to move and is still edited but sometimes connects to a nearby point
+ *
+ * Test 10: Clicking on empty space in edit mode
+ * Nothing happens, as expected.
+ *
+ * Test 11: Attempting to draw a point outside the canvas
+ * Doesn't register a point; no connecting line is drawn
+ *
+ * Test 12: While editing a point, mouse is dragged out of canvas
+ * point stops moving once mouse is out of the canvas. Coordinate is updated to be that of the boundary where the mouse left the canvas
+ */
