@@ -519,7 +519,7 @@ function DrawingCanvas({ image }) {
 
   /**
    * Initializes the canvas context and updates the canvas dimensions whenever the `canvasDimensions`
-   * or 'redrawCanvas' changes. For example, when a new image is loaded, or new drawing points are added or edited.
+   * or 'redrawCanvas' changes. For example, when a new image is loaded, or drawing points are added edited.
    */
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -557,6 +557,33 @@ function DrawingCanvas({ image }) {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentStroke]);
+
+    /**
+     * Draws a point on the canvas.
+     */
+    const drawPoint = (x, y) => {
+      const ctx = ctxRef.current;
+      if (!ctx) return;
+      ctx.beginPath();
+      ctx.arc(x, y, 3, 0, 2 * Math.PI);
+      ctx.fillStyle = "white";
+      ctx.fill();
+      ctx.stroke();
+    };
+
+    /**
+     * Connects a series of points with a line.
+     */
+    const connectPoints = (points) => {
+      const ctx = ctxRef.current;
+      if (!ctx || points.length <= 1) return;
+      ctx.beginPath();
+      ctx.moveTo(points[0].x, points[0].y);
+      points.forEach((point) => {
+        ctx.lineTo(point.x, point.y);
+      });
+      ctx.stroke();
+    };
 
   /**
    * Handles user clicks on the canvas to add points in drawing mode.
@@ -662,33 +689,6 @@ const handleCanvasClick = (e) => {
   };
 
 
-  /**
-   * Draws a point on the canvas.
-   */
-  const drawPoint = (x, y) => {
-    const ctx = ctxRef.current;
-    if (!ctx) return;
-    ctx.beginPath();
-    ctx.arc(x, y, 3, 0, 2 * Math.PI);
-    ctx.fillStyle = "white";
-    ctx.fill();
-    ctx.stroke();
-  };
-
-  /**
-   * Connects a series of points with a line.
-   */
-  const connectPoints = (points) => {
-    const ctx = ctxRef.current;
-    if (!ctx || points.length <= 1) return;
-    ctx.beginPath();
-    ctx.moveTo(points[0].x, points[0].y);
-    points.forEach((point) => {
-      ctx.lineTo(point.x, point.y);
-    });
-    ctx.stroke();
-  };
-
 /**
  * Saves the drawing as a text file with coordinate values.
  *
@@ -699,6 +699,7 @@ const handleCanvasClick = (e) => {
  */
 const saveCoordinates = () => {
   // Use only finished strokes (ignore currentStroke)
+  // image
   const coordinatesText = strokes
     .map((stroke) =>
       stroke.map(point => `${point.x.toFixed(2)},${point.y.toFixed(2)}`).join("\n")
@@ -776,10 +777,11 @@ export default DrawingCanvas;
  * will record a point where the mouse button is let go of i.e., at MouseUp
  *
  * Test 7: Trying to edit points that have overlapped
- * the dit operation will take place on the top point
+ * the edit operation will take place on the top point
  *
  * Test 8: Moving a point and pressing 'F' without exiting edit mode
- * Works as expected, the stroke updates with the new position
+ * Works as expected, the stroke updates with the new position. The point is edited successfully even though we haven't
+ * exited edit mode
  *
  * Test 9: Clicking on a point, dragging it, then pressing 'E' mid-drag
  * Unexpected behavior: The point continues to move and is still edited but sometimes connects to a nearby point
